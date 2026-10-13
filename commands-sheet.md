@@ -24,6 +24,23 @@ kubectl config view --minify | grep namespace    # which namespace am I in?
 ```
 
 ---
+## Namespaces
+
+```bash
+kubectl get ns
+kubectl create namespace dev
+kubectl get pods -n dev
+kubectl get pods -A
+kubectl create deployment web --image=nginx -n dev
+kubectl config set-context --current --namespace=dev     # change the default namespace
+kubectl delete namespace dev                             # removes everything inside it
+```
+
+- A command without `-n` acts on the current namespace (`default` unless changed). Check before deleting.
+- The same name can exist in different namespaces.
+- Namespaces separate names, RBAC and quotas, but not network traffic by default.
+- Cross-namespace DNS: `<service>.<namespace>.svc.cluster.local`.
+- `kube-system` holds the cluster's own components (API server, etcd, scheduler, controller manager, CoreDNS).
 
 ## Deployments and Pods
 
