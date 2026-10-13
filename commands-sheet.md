@@ -13,6 +13,14 @@ kubectl get pods -A                   # don't assume the namespace
 kubectl api-resources                 # all object types and short names
 kubectl explain pod.spec.containers   # YAML field help
 kubectl create deployment web --image=nginx --dry-run=client -o yaml > web.yaml   # generate YAML to edit
+
+kubectl get ns                                   # list namespaces
+kubectl get pods -n kube-system                  # one namespace
+kubectl get pods -A                              # all namespaces
+kubectl create namespace dev
+kubectl create deployment web --image=nginx -n dev
+kubectl config set-context --current --namespace=dev   # make dev your default
+kubectl config view --minify | grep namespace    # which namespace am I in?
 ```
 
 ---
