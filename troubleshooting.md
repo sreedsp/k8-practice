@@ -249,3 +249,40 @@ kill %1       # kill job number 1
 
 # maxSurge rounds up to 1, so Kubernetes may run 1 extra new Pod (4 in total).
 # maxUnavailable rounds down to 0, so all 3 old Pods must stay available.
+
+## Scenario 4 – Bad image tag during a rolling update
+
+### Setup
+
+```bash
+kubectl set image deployment web nginx=nginx:doesnotexist -n shop
+```
+
+### Symptom
+
+New pod stuck in `ErrImagePull` then `ImagePullBackOff`. The 3 old pods stay `Running`, so the app keeps serving.
+`kubectl rollout status` hangs: "1 out of 3 new replicas have been updated".
+
+### Checked
+
+```bash
+kubectl get pods -n shop
+kubectl describe pod <new-pod> -n shop
+```
+
+Events: `Failed to pull image "nginx:doesnotexist": ... docker.io/library/nginx:doesnotexist: not found`
+
+### Cause
+
+The image tag does not exist in the registry. With 3 replicas, maxSurge 25% rounds up to 1 and
+maxUnavailable 25% rounds down to 0, so no old pod is removed until the new one is Ready.
+
+### Fix
+
+```bash
+kubectl rollout undo deployment web -n shop
+```
+
+### Verified
+
+TODO: paste the `rollout status` and `get pods` output after the undo.
