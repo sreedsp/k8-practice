@@ -298,4 +298,13 @@ Lesson: `set image` and `undo` cause drift from the YAML. In real projects, chan
 Git and `apply` it.
 ### Verified
 
-TODO: paste the `rollout status` and `get pods` output after the undo.
+```bash
+kubectl rollout status deployment web -n shop
+deployment "web" successfully rolled out
+
+kubectl get pods -n shop
+NAME                   READY   STATUS    RESTARTS   AGE
+web-845f9b6b57-gpsml   1/1     Running   0          14m
+web-845f9b6b57-qvkps   1/1     Running   0          14m
+web-845f9b6b57-w7hbj   1/1     Running   0          14m
+```
