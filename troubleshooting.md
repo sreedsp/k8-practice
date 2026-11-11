@@ -282,7 +282,20 @@ maxUnavailable 25% rounds down to 0, so no old pod is removed until the new one 
 ```bash
 kubectl rollout undo deployment web -n shop
 ```
+### Verified
 
+```bash
+kubectl rollout undo deployment web -n shop
+kubectl rollout status deployment web -n shop
+kubectl get rs -n shop
+kubectl describe deploy web -n shop | findstr "Image"
+```
+
+`successfully rolled out`. Original ReplicaSet back to 3/3, bad one scaled to 0.
+Image is `nginx:1.25` again. The 3 original pods never restarted, so there was no downtime.
+Note: history shows revisions 2 and 3. The undo reuses the old template under a new number.
+Lesson: `set image` and `undo` cause drift from the YAML. In real projects, change the image in
+Git and `apply` it.
 ### Verified
 
 TODO: paste the `rollout status` and `get pods` output after the undo.
