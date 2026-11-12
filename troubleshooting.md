@@ -301,10 +301,16 @@ Git and `apply` it.
 ```bash
 kubectl rollout status deployment web -n shop
 deployment "web" successfully rolled out
-
+```
+### Symptom: new pod Running, READY 0/1, rollout stuck, old pods still serving.
+### Check: kubectl describe pod → Events → Readiness probe failed.
+### Cause: the probe path/port is wrong, or the app isn’t ready.
+Fix: correct the probe in the YAML, then kubectl apply.
+```bash
 kubectl get pods -n shop
 NAME                   READY   STATUS    RESTARTS   AGE
 web-845f9b6b57-gpsml   1/1     Running   0          14m
 web-845f9b6b57-qvkps   1/1     Running   0          14m
 web-845f9b6b57-w7hbj   1/1     Running   0          14m
 ```
+
