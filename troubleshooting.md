@@ -314,3 +314,5 @@ web-845f9b6b57-qvkps   1/1     Running   0          14m
 web-845f9b6b57-w7hbj   1/1     Running   0          14m
 ```
 
+## Scenario 5, probes. 
+The entries are the readiness symptom (0/1, stuck rollout), the liveness symptom (restarts → CrashLoopBackOff), the Events lines you captured, and the fix through the file with apply.
