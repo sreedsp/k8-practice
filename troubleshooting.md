@@ -316,3 +316,8 @@ web-845f9b6b57-w7hbj   1/1     Running   0          14m
 
 ## Scenario 5, probes. 
 The entries are the readiness symptom (0/1, stuck rollout), the liveness symptom (restarts → CrashLoopBackOff), the Events lines you captured, and the fix through the file with apply.
+
+Symptom: the HPA doesn't scale, or shows <unknown>/50%.
+Check: kubectl get hpa, then kubectl describe hpa (Conditions and Events), then kubectl top pods (is the metrics-server answering?), then the pod resources.requests.
+Cause: missing requests, no metrics-server, the HPA at its maxReplicas, or still inside the scale-down window.
+Remember: CPU % is measured against the request; replicas = ceil(current × usage ÷ target); scale-down waits about 5 minutes.
