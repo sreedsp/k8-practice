@@ -317,7 +317,62 @@ web-845f9b6b57-w7hbj   1/1     Running   0          14m
 ## Scenario 5, probes. 
 The entries are the readiness symptom (0/1, stuck rollout), the liveness symptom (restarts → CrashLoopBackOff), the Events lines you captured, and the fix through the file with apply.
 
-Symptom: the HPA doesn't scale, or shows <unknown>/50%.
-Check: kubectl get hpa, then kubectl describe hpa (Conditions and Events), then kubectl top pods (is the metrics-server answering?), then the pod resources.requests.
-Cause: missing requests, no metrics-server, the HPA at its maxReplicas, or still inside the scale-down window.
-Remember: CPU % is measured against the request; replicas = ceil(current × usage ÷ target); scale-down waits about 5 minutes.
+## Scenario 5: Probe failures (readiness / liveness)
+
+**Symptom:** New pods `Running` but `READY 0/1` with a stuck rollout (readiness), or `RESTARTS` climbing and then `CrashLoopBackOff` (liveness).
+
+**Check:**
+```
+kubectl get pods -n shop
+kubectl describe pod <pod> -n shop        # Events: "Readiness/Liveness probe failed ... statuscode: 404"
+kubectl get endpoints web -n shop         # failing readiness = pod missing from endpoints
+```
+
+**Cause:** Wrong probe path or port, `initialDelaySeconds` too short, or a typo in a field name (K8s only warns and ignores the field).
+
+**Fix:** Correct the probe in the YAML, then `kubectl apply -f deployment.yaml` and `kubectl rollout status deploy/web -n shop`.
+
+**Notes:** Readiness removes the pod from the Service (no restart); a bad readiness probe is safe because the old pods keep serving. Liveness restarts the container; a bad liveness probe can take every pod down. Validate with `kubectl apply --dry-run=server` and read the warnings.
+
+## Scenario 6: Ingress returns 404 or 503
+
+**Symptom:** The ingress IP answers with 404 or 503 instead of the app.
+
+**Check:**
+```
+kubectl get ingress -n shop                 # class, host, ADDRESS
+kubectl describe ingress web -n shop        # Backends column
+kubectl get endpoints web -n shop           # are there pod IPs?
+curl -i -H "Host: shop.example.com" http://<ingress-ip>
+```
+
+| Response | Meaning |
+|---|---|
+| 404 `nginx` (no version) | No rule matched: wrong host or path |
+| 404 `nginx/1.25.x` | Rule matched, app has no such page: check app logs |
+| 503 | Backend Service missing or no ready pods |
+| 502/504 | Pod does not respond correctly or times out |
+
+**Cause:** Missing or wrong host/path, backend Service name is wrong (`describe` shows `services "x" not found`), no ready pods.
+
+**Fix:** Correct `ingress.yaml` and `kubectl apply -f ingress.yaml`.
+
+**Notes:** An Ingress object's identity is kind + name + namespace, so changing `metadata.name` creates a second Ingress. The backend Service must be in the same namespace. Find the class name with `kubectl get ingressclass`.
+
+## Scenario 7: HPA does not scale or shows `<unknown>`
+
+**Symptom:** `kubectl get hpa` shows `<unknown>/50%`, or CPU is high, but replicas do not change.
+
+**Check:**
+```
+kubectl get hpa -n shop
+kubectl describe hpa web -n shop            # Conditions and Events
+kubectl top pods -n shop                    # Is the metrics-server answering?
+kubectl get deploy web -n shop -o yaml      # resources.requests present?
+```
+
+**Cause:** No CPU `requests` on the pods, metrics-server not working, HPA already at `maxReplicas`, or still inside the scale-down window (about 5 minutes).
+
+**Fix:** Add `resources.requests`, apply, wait for metrics (15 to 60 seconds), or raise `maxReplicas`.
+
+**Notes:** CPU % is measured against the pod's **request**. Replicas = `ceil(current replicas x current usage/target usage)`, within min and max. Scale-up is fast; scale-down waits about 5 minutes. Remove `replicas:` from the Deployment YAML when an HPA manages it.
