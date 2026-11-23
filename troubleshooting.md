@@ -376,3 +376,22 @@ kubectl get deploy web -n shop -o yaml      # resources.requests present?
 **Fix:** Add `resources.requests`, apply, wait for metrics (15 to 60 seconds), or raise `maxReplicas`.
 
 **Notes:** CPU % is measured against the pod's **request**. Replicas = `ceil(current replicas x current usage/target usage)`, within min and max. Scale-up is fast; scale-down waits about 5 minutes. Remove `replicas:` from the Deployment YAML when an HPA manages it.
+
+## Scenario 8: StatefulSet pods stuck or data not persisting
+
+**Symptom:** `db-1` stays `Pending` (or never starts), a PVC is `Pending`, or data is missing after a pod restart.
+
+**Check:**
+```
+kubectl get pods -n shop -w              # ordered start: db-0 must be Ready before db-1 starts
+kubectl get pvc -n shop                  # expect data-db-0, data-db-1 (one per pod)
+kubectl describe pod db-1 -n shop        # Events: scheduling / volume attach errors
+kubectl describe pvc data-db-1 -n shop   # Events: provisioning errors
+kubectl get svc -n shop                  # headless Service: CLUSTER-IP None
+```
+
+**Cause:** `db-0` not Ready (blocks the rest), storage class cannot provision the disk, `volumeClaimTemplates` indented under `template` (strict decoding error: unknown field `spec.template.volumeClaimTemplates`), or the headless Service named in `serviceName` does not exist.
+
+**Fix:** Correct the YAML (`volumeClaimTemplates` is a sibling of `template` under `spec`), then run `kubectl apply -f statefulset.yaml`. Always run `--dry-run=server` first.
+
+**Notes:** Each pod gets its own PVC; deleting a pod recreates it with the same name and the same PVC, so data survives. Scale-down removes the highest number first and **keeps** the PVC. PVCs must be deleted by hand when no longer needed. The headless Service (`clusterIP: None`) returns pod IPs, and `db-0.db` resolves to one pod only.
