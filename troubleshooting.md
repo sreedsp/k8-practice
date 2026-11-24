@@ -395,3 +395,23 @@ kubectl get svc -n shop                  # headless Service: CLUSTER-IP None
 **Fix:** Correct the YAML (`volumeClaimTemplates` is a sibling of `template` under `spec`), then run `kubectl apply -f statefulset.yaml`. Always run `--dry-run=server` first.
 
 **Notes:** Each pod gets its own PVC; deleting a pod recreates it with the same name and the same PVC, so data survives. Scale-down removes the highest number first and **keeps** the PVC. PVCs must be deleted by hand when no longer needed. The headless Service (`clusterIP: None`) returns pod IPs, and `db-0.db` resolves to one pod only.
+
+
+## Scenario 9: Helm install, upgrade or rollback problems
+
+**Symptom:** `helm install` fails, a release is in a bad state, or an upgrade did not change what was expected.
+
+**Check:**
+```
+helm list -n <ns>                         # releases, REVISION, STATUS
+helm history <release> -n <ns>            # every revision and its description
+helm template <release> <chart>           # render the YAML without installing
+helm get values <release> -n <ns>         # the values actually applied
+kubectl get all -n <ns>                   # what the release created
+```
+
+**Cause:** Namespace does not exist (`-n` without `--create-namespace`), wrong value key in `--set`, running the command from the wrong folder (chart path not found), a conditional template switched off by default (`ingress.enabled=false`), or an old release name already in use.
+
+**Fix:** Add `--create-namespace`, correct the key or values file, run from the folder that holds the chart, then `helm upgrade --install <release> <chart> -n <ns>`. To go back: `helm rollback <release> <revision> -n <ns>`.
+
+**Notes:** Release = a named install of a chart. `values.yaml` holds defaults and `--set` or `-f` overrides them. A rollback creates a **new** revision ("Rollback to 1"), and history only moves forward. `helm uninstall` removes every object the release created. Always `helm template` a vendor chart before installing it. Which pod a ReplicaSet removes on scale-down is not guaranteed.
